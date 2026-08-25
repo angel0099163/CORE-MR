@@ -4,66 +4,78 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body, html { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #111; }
+        body, html { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
         canvas { display: block; }
     </style>
 </head>
 <body>
 
-    <!-- Importando o Three.js para renderizar os objetos 3D -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         let scene, camera, renderer, cube;
+        let rotX = 0, rotY = 0;
 
         function init() {
-            // Cena
+            // Cena com alpha: true para permitir transparência (Realidade Mista)
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x111122);
 
             // Câmera
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.z = 3;
 
-            // Renderizador
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            // Renderizador com transparência ligada
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000, 0); // Fundo transparente
             document.body.appendChild(renderer.domElement);
 
-            // Luz Básica
+            // Luz
             const light = new THREE.DirectionalLight(0xffffff, 1);
             light.position.set(0, 10, 5).normalize();
             scene.add(light);
-            scene.add(new THREE.AmbientLight(0x404040));
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-            // Objeto 3D (Um Cubo Colorido flutuando)
+            // Objeto 3D flutuando
             const geometry = new THREE.BoxGeometry(1, 1, 1);
-            const material = new THREE.MeshStandardMaterial({ color: 0x00ffcc, roughness: 0.3 });
+            const material = new THREE.MeshStandardMaterial({ color: 0x00ffcc, roughness: 0.2, metalness: 0.8 });
             cube = new THREE.Mesh(geometry, material);
             scene.add(cube);
 
-            // Suporte básico ao movimento do giroscópio do celular (Orientação da tela)
-            window.addEventListener('deviceorientation', setOrientation, false);
+            // Evento para capturar os sensores do celular de forma suave
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', handleOrientation, true);
+            }
 
             animate();
         }
 
-        function setOrientation(e) {
-            if (e.alpha && e.beta && e.gamma) {
-                // Converte os dados do giroscópio para rotação simples da câmera
-                let rotX = THREE.MathUtils.degToRad(e.beta - 90);
-                let rotY = THREE.MathUtils.degToRad(e.gamma);
-                camera.rotation.x = rotX;
-                camera.rotation.y = rotY;
+        function handleOrientation(e) {
+            if (e.alpha !== null && e.beta !== null && e.gamma !== null) {
+                // Conversão suavizada dos eixos do giroscópio do Android
+                let beta = THREE.MathUtils.degToRad(e.beta - 90);
+                let gamma = THREE.MathUtils.degToRad(e.gamma);
+                
+                camera.rotation.x = beta;
+                camera.rotation.y = gamma;
             }
         }
 
         function animate() {
             requestAnimationFrame(animate);
-            // Girar o cubo lentamente
+            
+            // Animação do cubo
             cube.rotation.x += 0.01;
             cube.rotation.y += 0.01;
+            
             renderer.render(scene, camera);
         }
+
+        // Ajusta se a tela girar
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
 
         init();
     </script>
