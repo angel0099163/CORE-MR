@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Meu App VR Básico</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: sans-serif;
+        }
+        #container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+        .eye {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            border-right: 2px solid #222;
+        }
+        iframe {
+            width: 200%;
+            height: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+            border: none;
+            pointer-events: none;
+        }
+        .right-eye iframe {
+            left: -100%; /* Desloca a visão para simular o efeito estéreo */
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            z-index: 10;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">Insira o celular no VR Box</div>
+
+    <div id="container">
+        <!-- Olho Esquerdo -->
+        <div class="eye left-eye">
+            <iframe id="frame-left" src="scene.html"></iframe>
+        </div>
+        <!-- Olho Direito -->
+        <div class="eye right-eye">
+            <iframe id="frame-right" src="scene.html"></iframe>
+        </div>
+    </div>
+
+</body>
+</html>
