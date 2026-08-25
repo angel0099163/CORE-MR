@@ -3,19 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>App VR & Realidade Mista</title>
+    <title>CORE MR</title>
     <style>
-        body, html {
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
+        }
+
+        body, html {
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #000;
-            font-family: sans-serif;
+            background-color: #05050a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        
-        /* Câmera de fundo para Realidade Mista */
+
+        /* Tela Inicial (Menu Principal) */
+        #menu-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            transition: opacity 0.5s ease;
+        }
+
+        /* Estilo do Logo baseado na foto */
+        .logo-container {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .vr-icon {
+            width: 90px;
+            height: auto;
+            margin-bottom: -10px;
+            filter: drop-shadow(0 0 10px rgba(0, 170, 255, 0.6));
+        }
+
+        .logo-text-core {
+            font-size: 48px;
+            font-weight: 900;
+            letter-spacing: 4px;
+            color: #ffffff;
+        }
+
+        .logo-text-mr {
+            font-size: 42px;
+            font-weight: 900;
+            letter-spacing: 6px;
+            color: #00d2ff;
+            text-shadow: 0 0 15px rgba(0, 210, 255, 0.8);
+            margin-top: -5px;
+        }
+
+        /* Botões idênticos aos da imagem */
+        .menu-btn {
+            width: 80%;
+            max-width: 320px;
+            height: 55px;
+            border-radius: 35px;
+            border: none;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            transition: transform 0.1s ease, filter 0.2s;
+        }
+
+        .menu-btn:active {
+            transform: scale(0.96);
+        }
+
+        .btn-iniciar {
+            background: linear-gradient(135deg, #0070ff, #0042cc);
+            color: #ffffff;
+        }
+
+        .btn-config {
+            background: #ffffff;
+            color: #0b132b;
+        }
+
+        /* Painel de Configurações (Oculto inicialmente) */
+        #config-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(5, 5, 10, 0.95);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 110;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        #config-screen h2 {
+            margin-bottom: 20px;
+            color: #00d2ff;
+        }
+
+        #config-screen p {
+            margin-bottom: 30px;
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        /* Ambiente de VR e Realidade Mista (Oculto até clicar em Iniciar) */
+        #vr-container-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: none;
+            z-index: 10;
+        }
+
         #camera-bg {
             position: absolute;
             top: 0;
@@ -24,7 +141,6 @@
             height: 100vh;
             object-fit: cover;
             z-index: 1;
-            display: none; /* Começa oculta */
         }
 
         #container {
@@ -42,6 +158,7 @@
             height: 100%;
             position: relative;
             overflow: hidden;
+            border-right: 1px solid #111;
         }
 
         iframe {
@@ -59,106 +176,113 @@
             left: -100%;
         }
 
-        /* Menu de Controles Flutuante */
-        #ui-menu {
+        /* Botão flutuante para voltar ao menu dentro do jogo */
+        #sair-btn {
             position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-            display: flex;
-            gap: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 10px 15px;
-            border-radius: 12px;
-            backdrop-filter: blur(5px);
-        }
-
-        button {
-            background: #00ffcc;
+            top: 15px;
+            right: 15px;
+            z-index: 200;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
             border: none;
-            color: #000;
-            padding: 8px 14px;
+            padding: 8px 16px;
+            border-radius: 8px;
             font-weight: bold;
-            border-radius: 6px;
+            display: none;
             cursor: pointer;
-            font-size: 13px;
-        }
-
-        button:active {
-            background: #00b38f;
         }
     </style>
 </head>
 <body>
 
-    <!-- Vídeo da Câmera Traseira (Realidade Mista) -->
-    <video id="camera-bg" autoplay playsinline muted></video>
+    <!-- TELA INICIAL (Idêntica à foto) -->
+    <div id="menu-screen">
+        <div class="logo-container">
+            <!-- Ícone estilizado do óculos VR -->
+            <svg class="vr-icon" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12h3l2 4h10l2-4h3a1 1 0 0 1 1 1v5a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-5a1 1 0 0 1 1-1z"></path>
+                <path d="M7 10v2"></path><path d="M17 10v2"></path>
+            </svg>
+            <div class="logo-text-core">CORE</div>
+            <div class="logo-text-mr">MR</div>
+        </div>
 
-    <!-- Tela Dividida VR -->
-    <div id="container">
-        <div class="eye left-eye">
-            <iframe id="frame-left" src="scene.html"></iframe>
-        </div>
-        <div class="eye right-eye">
-            <iframe id="frame-right" src="scene.html"></iframe>
-        </div>
+        <button class="menu-btn btn-iniciar" onclick="iniciarApp()">iniciar</button>
+        <button class="menu-btn btn-config" onclick="abrirConfig()">configurações</button>
     </div>
 
-    <!-- Menu de Opções -->
-    <div id="ui-menu">
-        <button onclick="toggleMixedReality()">Alternar Realidade Mista</button>
-        <button onclick="requestFullscreen()">Tela Cheia</button>
+    <!-- TELA DE CONFIGURAÇÕES -->
+    <div id="config-screen">
+        <h2>Configurações</h2>
+        <p>Ajuste os parâmetros do seu ambiente VR e Realidade Mista.</p>
+        <button class="menu-btn btn-iniciar" onclick="fecharConfig()">Voltar</button>
+    </div>
+
+    <!-- BOTÃO DE SAIR DO JOGO -->
+    <button id="sair-btn" onclick="voltarMenu()">Sair</button>
+
+    <!-- AMBIENTE VR / REALIDADE MISTA -->
+    <div id="vr-container-wrapper">
+        <video id="camera-bg" autoplay playsinline muted></video>
+        <div id="container">
+            <div class="eye left-eye">
+                <iframe id="frame-left" src="scene.html"></iframe>
+            </div>
+            <div class="eye right-eye">
+                <iframe id="frame-right" src="scene.html"></iframe>
+            </div>
+        </div>
     </div>
 
     <script>
         let cameraStream = null;
-        let mrActive = false;
 
-        // Função para ativar/desativar a Câmera (Realidade Mista)
-        async function toggleMixedReality() {
-            const videoElement = document.getElementById('camera-bg');
-            
-            if (!mrActive) {
+        async function iniciarApp() {
+            // Esconde o menu e mostra o app VR
+            document.getElementById('menu-screen').style.display = 'none';
+            document.getElementById('vr-container-wrapper').style.display = 'block';
+            document.getElementById('sair-btn').style.display = 'block';
+
+            // Ativa tela cheia para melhorar a imersão no VR Box
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(err => {});
+            }
+
+            // Tenta ligar a câmera traseira automaticamente para a Realidade Mista
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { exact: "environment" } }
+                });
+                document.getElementById('camera-bg').srcObject = cameraStream;
+            } catch (err) {
                 try {
-                    // Pede acesso à câmera traseira do celular
-                    cameraStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: { exact: "environment" } }
-                    });
-                    videoElement.srcObject = cameraStream;
-                    videoElement.style.display = 'block';
-                    mrActive = true;
-                } catch (err) {
-                    // Se falhar a traseira exata, tenta qualquer câmera disponível
-                    try {
-                        cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
-                        videoElement.srcObject = cameraStream;
-                        videoElement.style.display = 'block';
-                        mrActive = true;
-                    } catch (e) {
-                        alert("Não foi possível acessar a câmera para a Realidade Mista.");
-                    }
+                    cameraStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                    document.getElementById('camera-bg').srcObject = cameraStream;
+                } catch (e) {
+                    console.log("Câmera indisponível, rodando apenas em modo VR.");
                 }
-            } else {
-                if (cameraStream) {
-                    cameraStream.getTracks().forEach(track => track.stop());
-                }
-                videoElement.style.display = 'none';
-                mrActive = false;
             }
         }
 
-        // Função para colocar o navegador em tela cheia (melhora a experiência no VR Box)
-        function requestFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.log("Erro ao tentar tela cheia: ", err.message);
-                });
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
+        function abrirConfig() {
+            document.getElementById('config-screen').style.display = 'flex';
+        }
+
+        function fecharConfig() {
+            document.getElementById('config-screen').style.display = 'none';
+        }
+
+        function voltarMenu() {
+            // Para a câmera se estiver ligada
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
             }
+            if (document.exitFullscreen) {
+                document.exitFullscreen().catch(err => {});
+            }
+            document.getElementById('vr-container-wrapper').style.display = 'none';
+            document.getElementById('sair-btn').style.display = 'none';
+            document.getElementById('menu-screen').style.display = 'flex';
         }
     </script>
 </body>
