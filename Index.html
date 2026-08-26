@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Primeiro App VR</title>
+    <!-- Importando a biblioteca A-Frame -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+</head>
+<body>
+    <a-scene>
+        <!-- Céu com cor sólida ou imagem -->
+        <a-sky color="#111122"></a-sky>
+
+        <!-- Luz ambiente -->
+        <a-light type="ambient" color="#BBB"></a-light>
+        <a-light type="directional" color="#fff" position="-1 1 1"></a-light>
+
+        <!-- Chão -->
+        <a-plane position="0 0 -4" rotation="-90 0 0" width="20" height="20" color="#333" roughness="0.8"></a-plane>
+
+        <!-- Objetos 3D no cenário -->
+        <!-- Caixa Vermelha -->
+        <a-box position="-1 1.5 -3" rotation="0 45 0" color="#EF2D5E" shadow></a-box>
+
+        <!-- Esfera Azul -->
+        <a-sphere position="1 1.5 -3.5" radius="0.75" color="#4CC3D9" shadow></a-sphere>
+
+        <!-- Cilindro Amarelo -->
+        <a-link href="#" position="0 1 -2" title="Voltar" color="#FFC65D"></a-link>
+
+        <!-- Câmera com suporte a óculos VR (Cardboard / VR Box) -->
+        <a-camera position="0 1.6 0">
+            <!-- Retícula/Mira para interagir com os objetos -->
+            <a-cursor color="#FF0000"></a-cursor>
+        </a-camera>
+    </a-scene>
+</body>
+</html>
