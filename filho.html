@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Painel do Filho</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background-color: #f4f4f9; }
+        .box { background: white; padding: 20px; border-radius: 8px; display: inline-block; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        input, button { padding: 10px; margin: 10px; font-size: 16px; }
+        button { background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #218838; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>Painel de Solicitação</h2>
+        <p>O que você está fazendo?</p>
+        <input type="text" id="atividade" placeholder="Ex: Estudando, Jogando..." style="width: 80%;">
+        <br>
+        <button onclick="pedirPermissao()">Pedir Permissão / Enviar</button>
+        <p id="status" style="font-weight: bold; color: #555;"></p>
+    </div>
+
+    <script>
+        function pedirPermissao() {
+            const atividade = document.getElementById('atividade').value;
+            if (!atividade) {
+                alert('Digite o que você está fazendo!');
+                return;
+            }
+            
+            // Salvando os dados no navegador para simular o envio
+            localStorage.setItem('statusFilho', atividade);
+            localStorage.setItem('pedidoPendente', 'Sim');
+            
+            document.getElementById('status').innerText = 'Solicitação enviada ao responsável!';
+        }
+    </script>
+</body>
+  </html>
+  
