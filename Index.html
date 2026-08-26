@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>VR Box - Realidade Mista com Hand Tracking</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 15px 25px;
+            border-radius: 30px;
+            font-size: 16px;
+            z-index: 100;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 90%;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255,255,255,0.18);
+            transition: transform 0.2s;
+        }
+        
+        button:active {
+            transform: scale(0.95);
+        }
+        
+        #stream {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #status {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #4ade80;
+            font-size: 14px;
+            z-index: 100;
+            text-shadow: 0 0 10px rgba(74, 222, 128, 0.8);
+        }
+        
+        .hand-indicator {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,0,0,0.8) 0%, rgba(255,0,0,0) 70%);
+            pointer-events: none;
+            z-index: 50;
+        }
+    </style>
+</head>
+<body>
+    <video id="stream" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+    
+    <div id="info">
+        🥽 VR Box - Realidade Mista<br>
+        <small>Hand Tracking via MediaPipe</small>
+    </div>
+    
+    <div id="status">Carregando...</div>
+    
+    <div id="controls">
+        <button onclick="startCamera()">📷 Iniciar Câmera</button>
+        <button onclick="toggleHandTracking()">✋ Hand Tracking</button>
+        <button onclick="toggleVrMode()">🥽 Modo VR</button>
+        <button onclick="addVirtualObject()">➕ Adicionar Objeto</button>
+    </div>
+    
+    <!-- MediaPipe Hand Tracking -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+    <!-- Three.js para 3D -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <script>
+        // Configurações globais
+        let video = document.getElementById('stream');
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let handTrackingEnabled = false;
+        let vrMode = false;
+        let cameraActive = false;
+        
+        // Objetos virtuais para realidade mista
+        let virtualObjects = [];
+        
+        // Configuração do MediaPipe
+        const hands = new Hands({
+            locateFile: (file) => {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+            }
+        });
+        
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        
+        hands.onResults(onHandResults);
+        
+        // Configuração da câmera
+        const camera = new Camera(video, {
+            onFrame: async () => {
+                if (handTrackingEnabled && cameraActive) {
+                    await hands.send({image: video});
+                }
+            },
+            width: 1280,
+            height: 720
+        });
+        
+        function startCamera() {
+            if (!cameraActive) {
+                camera.start();
+                cameraActive = true;
+                document.getElementById('status').textContent = '📷 Câmera Ativa!';
+                document.getElementById('status').style.color = '#4ade80';
+            } else {
+                camera.stop();
+                cameraActive = false;
+                document.getElementById('status').textContent = '📷 Câmera Desativada';
+                document.getElementById('status').style.color = '#ef4444';
+            }
+        }
+        
+        function toggleHandTracking() {
+            handTrackingEnabled = !handTrackingEnabled;
+            document.getElementById('status').textContent = handTrackingEnabled ? 
+                '✋ Hand Tracking Ativo!' : '✋ Hand Tracking Desativado';
+            document.getElementById('status').style.color = handTrackingEnabled ? 
+                '#4ade80' : '#ef4444';
+        }
+        
+        function toggleVrMode() {
+            vrMode = !vrMode;
+            if (vrMode) {
+                // Criar estereoscopia simples para VR Box
+                document.getElementById('status').textContent = '🥽 Modo VR Ativo - Coloque no VR Box!';
+                document.getElementById('status').style.color = '#4ade80';
+                createStereoscopicView();
+            } else {
+                document.getElementById('status').textContent = '🥽 Modo VR Desativado';
+                document.getElementById('status').style.color = '#ef4444';
+                removeStereoscopicView();
+            }
+        }
+        
+        function addVirtualObject() {
+            // Adicionar objeto virtual flutuante
+            const virtualObject = {
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: 50 + Math.random() * 100,
+                color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+                rotation: 0,
+                velocity: 0.02,
+                type: Math.random() > 0.5 ? 'circle' : 'cube'
+            };
+            virtualObjects.push(virtualObject);
+            document.getElementById('status').textContent = `➕ ${virtualObjects.length} objetos virtuais`;
+            document.getElementById('status').style.color = '#60a5fa';
+        }
+        
+        function createStereoscopicView() {
+            // Criar overlay para VR Box
+            const style = document.createElement('style');
+            style.id = 'vr-style';
+            style.textContent = `
+                #stream, #canvas {
+                    width: 50% !important;
+                    position: absolute !important;
+                }
+                #canvas {
+                    left: 0 !important;
+                }
+                #stream {
+                    right: 0 !important;
+                }
+                @media (orientation: landscape) {
+                    #stream, #canvas {
+                        height: 100% !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        function removeStereoscopicView() {
+            const style = document.getElementById('vr-style');
+            if (style) {
+                style.remove();
+            }
+        }
+        
+        function onHandResults(results) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Desenhar objetos virtuais
+            drawVirtualObjects();
+            
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                // Desenhar landmarks das mãos
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(landmarks);
+                    drawLandmarks(landmarks);
+                    detectGestures(landmarks);
+                }
+            }
+        }
+        
+        function drawConnectors(landmarks) {
+            // Conectar os pontos da mão
+            const connections = [
+                [0, 1], [1, 2], [2, 3], [3, 4],
+                [0, 5], [5, 6], [6, 7], [7, 8],
+                [0, 9], [9, 10], [10, 11], [11, 12],
+                [0, 13], [13, 14], [14, 15], [15, 16],
+                [0, 17], [17, 18], [18, 19], [19, 20],
+                [5, 9], [9, 13], [13, 17]
+            ];
+            
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 2;
+            
+            for (const [i, j] of connections) {
+                ctx.beginPath();
+                ctx.moveTo(landmarks[i].x * canvas.width, landmarks[i].y * canvas.height);
+                ctx.lineTo(landmarks[j].x * canvas.width, landmarks[j].y * canvas.height);
+                ctx.stroke();
+            }
+        }
+        
+        function drawLandmarks(landmarks) {
+            // Desenhar pontos de referência
+            ctx.fillStyle = '#ff0000';
+            
+            for (const landmark of landmarks) {
+                ctx.beginPath();
+                ctx.arc(
+                    landmark.x * canvas.width,
+                    landmark.y * canvas.height,
+                    5,
+                    0,
+                    2 * Math.PI
+                );
+                ctx.fill();
+            }
+        }
+        
+        function detectGestures(landmarks) {
+            // Detectar gestos simples
+            const thumb = landmarks[4];
+            const index = landmarks[8];
+            const middle = landmarks[12];
+            const ring = landmarks[16];
+            const pinky = landmarks[20];
+            
+            // Pinça (polegar + indicador)
+            const pinchDistance = calculateDistance(thumb, index);
+            if (pinchDistance < 0.05) {
+                createInteractionEffect(index.x * canvas.width, index.y * canvas.height, 'pinch');
+            }
+            
+            // Punho fechado
+            const fistDetected = [index, middle, ring, pinky].every(finger => 
+                finger.y > landmarks[5].y
+            );
+            
+            if (fistDetected) {
+                createInteractionEffect(
+                    landmarks[9].x * canvas.width,
+                    landmarks[9].y * canvas.height,
+                    'fist'
+                );
+            }
+        }
+        
+        function calculateDistance(p1, p2) {
+            return Math.sqrt(
+                Math.pow(p1.x - p2.x, 2) + 
+                Math.pow(p1.y - p2.y, 2) + 
+                Math.pow(p1.z - p2.z, 2)
+            );
+        }
+        
+        function createInteractionEffect(x, y, type) {
+            // Criar efeito visual baseado no gesto
+            ctx.beginPath();
+            ctx.arc(x, y, 20, 0, 2 * Math.PI);
+            
+            if (type === 'pinch') {
+                ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+            } else if (type === 'fist') {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+            }
+            
+            ctx.fill();
+            
+            // Interagir com objetos virtuais
+            virtualObjects = virtualObjects.filter(obj => {
+                const distance = Math.sqrt(
+                    Math.pow(obj.x - x, 2) + 
+                    Math.pow(obj.y - y, 2)
+                );
+                
+                if (distance < obj.size) {
+                    // Objeto "tocado"
+                    obj.color = `hsl(${Math.random() * 360}, 70%, 50%)`;
+                    obj.velocity *= 1.5;
+                    return true;
+                }
+                return true;
+            });
+        }
+        
+        function drawVirtualObjects() {
+            // Desenhar objetos virtuais
+            for (const obj of virtualObjects) {
+                obj.rotation += obj.velocity;
+                obj.y += Math.sin(obj.rotation) * 0.5;
+                
+                ctx.save();
+                ctx.translate(obj.x, obj.y);
+                ctx.rotate(obj.rotation);
+                
+                ctx.fillStyle = obj.color;
+                ctx.shadowColor = obj.color;
+                ctx.shadowBlur = 20;
+                
+                if (obj.type === 'circle') {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, obj.size / 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                } else {
+                    ctx.fillRect(-obj.size / 2, -obj.size / 2, obj.size, obj.size);
+                }
+                
+                ctx.restore();
+            }
+        }
+        
+        // Canvas resize
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        // Loop de animação
+        function animate() {
+            if (cameraActive) {
+                // Desenhar frame da câmera como fundo
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Desenhar objetos virtuais
+                drawVirtualObjects();
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        animate();
+        
+        // Iniciar automaticamente
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('status').textContent = '📱 Pronto! Clique em Iniciar Câmera';
+        });
+        
+        // Suporte a gestos de toque para mobile
+        let touchStartX = 0;
+        let touchStartY = 0;
+        
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+        
+        document.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+            
+            // Criar objetos com gestos de toque
+            if (Math.abs(touchX - touchStartX) > 50 || Math.abs(touchY - touchStartY) > 50) {
+                addVirtualObject();
+                touchStartX = touchX;
+                touchStartY = touchY;
+            }
+        }, { passive: false });
+    </script>
+</body>
+  </html>
