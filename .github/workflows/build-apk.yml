@@ -17,42 +17,76 @@ jobs:
       - name: Baixar código
         uses: actions/checkout@v4
 
+      - name: Descompactar projeto
+        run: |
+          set -e
+
+          ZIP="Core-MR-Tela-Inicial-HandTracking.zip"
+
+          if [ ! -f "$ZIP" ]; then
+            echo "ERRO: $ZIP não encontrado."
+            exit 1
+          fi
+
+          rm -rf extracted
+          mkdir extracted
+
+          unzip -q "$ZIP" -d extracted
+
+          echo "Projeto descompactado:"
+          ls -la extracted
+
       - name: Configurar Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Configurar Gradle
+      - name: Configurar Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
 
-      - name: Verificar projeto
+      - name: Verificar projeto Android
         run: |
           set -e
-          echo "Arquivos:"
-          ls -la
+
+          cd extracted
 
           test -d app
           test -f settings.gradle || test -f settings.gradle.kts
+          test -f build.gradle || test -f build.gradle.kts
 
-          echo "Projeto Android encontrado!"
+          echo "✅ Projeto Gradle encontrado!"
+          echo "📁 Conteúdo:"
+          ls -la
 
       - name: Gerar APK
         run: |
           set -e
-          gradle :app:assembleDebug --no-daemon --stacktrace
+          cd extracted
+
+          gradle :app:assembleDebug \
+            --no-daemon \
+            --stacktrace
 
       - name: Verificar APK
         run: |
           set -e
-          test -f app/build/outputs/apk/debug/app-debug.apk
-          ls -lh app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Disponibilizar APK para download
+          APK="extracted/app/build/outputs/apk/debug/app-debug.apk"
+
+          if [ ! -f "$APK" ]; then
+            echo "ERRO: APK não foi gerado."
+            exit 1
+          fi
+
+          echo "✅ APK gerado!"
+          ls -lh "$APK"
+
+      - name: Disponibilizar APK
         uses: actions/upload-artifact@v4
         with:
           name: Core-MR-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: extracted/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
