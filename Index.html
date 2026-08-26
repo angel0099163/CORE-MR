@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>CORE‑MR — VR Box & Realidade Mista</title>
+    <!-- Carrega estilos separados -->
+    <link rel="stylesheet" href="estilos.css" />
+    <!-- Biblioteca externa 3D -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+</head>
+<body>
+    <!-- Tela Inicial -->
+    <div id="tela-inicio">
+        <div class="logo">
+            <div class="logo-img">🥽</div>
+            <div class="logo-texto">CORE</div>
+            <div class="logo-sub">MR</div>
+        </div>
+        <button id="btn-iniciar">iniciar</button>
+        <button id="btn-config">configurações</button>
+    </div>
+
+    <div id="aviso"></div>
+    <div id="container-vr">
+        <canvas id="cena"></canvas>
+        <button id="botao-sair">✖ Voltar</button>
+    </div>
+
+    <!-- Carrega lógica separada -->
+    <script src="logica.js"></script>
+</body>
+</html>
