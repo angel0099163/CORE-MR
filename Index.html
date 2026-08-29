@@ -2,212 +2,121 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jogo do Passarinho</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MR Hand Tracking - VR Box</title>
     <style>
-        body {
-            margin: 0;
-            background-color: #222;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            font-family: Arial, sans-serif;
-            color: white;
-            user-select: none;
+        body, html {
+            margin: 0; padding: 0; overflow: hidden;
+            background: #000; width: 100%; height: 100%;
         }
-        canvas {
-            border: 4px solid #fff;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            background-color: #70c5ce;
+        #container {
+            display: flex; width: 100%; height: 100%;
         }
-        p {
-            margin-top: 10px;
-            font-size: 16px;
-            color: #aaa;
+        .eye {
+            flex: 1; width: 50%; height: 100%;
+            position: relative; overflow: hidden;
+            border-right: 2px solid #111;
+        }
+        /* O vídeo da câmera e o canvas do esqueleto ficam sobrepostos em cada olho */
+        video, canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover;
+            transform: scaleX(-1); /* Efeito espelho natural */
         }
     </style>
+
+    <!-- Importando as bibliotecas do Google MediaPipe via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
-    <canvas id="jogoCanvas" width="400" height="600"></canvas>
-    <p>Pressione a <strong>Barra de Espaço</strong> ou <strong>Clique na tela</strong> para pular.</p>
+    <div id="container">
+        <!-- OLHO ESQUERDO -->
+        <div class="eye">
+            <video id="video-input" autoplay playsinline></video>
+            <canvas id="canvas-left"></canvas>
+        </div>
+        <!-- OLHO DIREITO -->
+        <div class="eye">
+            <!-- Espelha o mesmo vídeo e desenha o esqueleto correspondente -->
+            <video id="video-clone" autoplay playsinline style="display:none;"></video>
+            <canvas id="canvas-right"></canvas>
+        </div>
+    </div>
 
     <script>
-        const canvas = document.getElementById("jogoCanvas");
-        const ctx = canvas.getContext("2d");
+        const videoElement = document.getElementById('video-input');
+        const canvasLeft = document.getElementById('canvas-left');
+        const ctxLeft = canvasLeft.getContext('2d');
+        
+        const canvasRight = document.getElementById('canvas-right');
+        const ctxRight = canvasRight.getContext('2d');
 
-        // Variáveis do Passarinho
-        let passaro = {
-            x: 80,
-            y: 250,
-            raio: 15,
-            gravidade: 0.6,
-            velocidade: 0,
-            pulo: -9
-        };
-
-        // Variáveis dos Canos
-        let canos = [];
-        let larguraCano = 60;
-        let espacoCanos = 160;
-        let velocidadeCano = 3;
-        let intervaloCano = 90; // quadros
-        let contadorQuadros = 0;
-
-        let pontuacao = 0;
-        let jogoTerminado = false;
-
-        // Controles (Espaço ou Clique)
-        document.addEventListener("keydown", function(e) {
-            if (e.code === "Space") {
-                fazerPulo();
+        function onResults(results) {
+            // Ajusta dimensões dos canvas conforme a resolução real da câmera
+            if (canvasLeft.width !== videoElement.videoWidth) {
+                canvasLeft.width = videoElement.videoWidth;
+                canvasLeft.height = videoElement.videoHeight;
+                canvasRight.width = videoElement.videoWidth;
+                canvasRight.height = videoElement.videoHeight;
             }
+
+            // Limpa os quadros anteriores
+            ctxLeft.save();
+            ctxLeft.clearRect(0, 0, canvasLeft.width, canvasLeft.height);
+            ctxLeft.drawImage(results.image, 0, 0, canvasLeft.width, canvasLeft.height);
+
+            ctxRight.save();
+            ctxRight.clearRect(0, 0, canvasRight.width, canvasRight.height);
+            ctxRight.drawImage(results.image, 0, 0, canvasRight.width, canvasRight.height);
+
+            // Se encontrar mãos, desenha o esqueleto estrutural em ambos os "olhos"
+            if (results.multiHandLandmarks) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    // Desenho no Olho Esquerdo
+                    drawConnectors(ctxLeft, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
+                    drawLandmarks(ctxLeft, landmarks, {color: '#FF0000', lineWidth: 2, radius: 3});
+
+                    // Desenho no Olho Direito (Criando a estereoscopia de realidade mista)
+                    drawConnectors(ctxRight, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
+                    drawLandmarks(ctxRight, landmarks, {color: '#FF0000', lineWidth: 2, radius: 3});
+                }
+            }
+            ctxLeft.restore();
+            ctxRight.restore();
+        }
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
         });
 
-        canvas.addEventListener("click", function() {
-            fazerPulo();
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.6
         });
 
-        function fazerPulo() {
-            if (jogoTerminado) {
-                reiniciarJogo();
-            } else {
-                passaro.velocidade = passaro.pulo;
-            }
-        }
+        hands.onResults(onResults);
 
-        function reiniciarJogo() {
-            passaro.y = 250;
-            passaro.velocidade = 0;
-            canos = [];
-            pontuacao = 0;
-            contadorQuadros = 0;
-            jogoTerminado = false;
-            loop();
-        }
+        // Inicializa a câmera traseira do celular
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({ image: videoElement });
+            },
+            facingMode: 'environment', // Câmera traseira para Realidade Mista
+            width: 1280,
+            height: 720
+        });
 
-        // Criar novos canos
-        function criarCano() {
-            let alturaMinima = 50;
-            let alturaMaxima = canvas.height - espacoCanos - 50;
-            let alturaTopo = Math.floor(Math.random() * (alturaMaxima - alturaMinima + 1)) + alturaMinima;
-
-            canos.push({
-                x: canvas.width,
-                topo: alturaTopo,
-                baixo: alturaTopo + espacoCanos,
-                passou: false
-            });
-        }
-
-        // Atualizar lógica do jogo
-        function atualizar() {
-            if (jogoTerminado) return;
-
-            // Física do passarinho
-            passaro.velocidade += passaro.gravidade;
-            passaro.y += passaro.velocidade;
-
-            // Colisão com o chão ou teto
-            if (passaro.y + passaro.raio >= canvas.height || passaro.y - passaro.raio <= 0) {
-                jogoTerminado = true;
-            }
-
-            // Gerenciar canos
-            if (contadorQuadros % intervaloCano === 0) {
-                criarCano();
-            }
-
-            for (let i = canos.length - 1; i >= 0; i--) {
-                canos[i].x -= velocidadeCano;
-
-                // Verificar colisão com o passarinho
-                if (
-                    passaro.x + passaro.raio > canos[i].x &&
-                    passaro.x - passaro.raio < canos[i].x + larguraCano &&
-                    (passaro.y - passaro.raio < canos[i].topo || passaro.y + passaro.raio > canos[i].baixo)
-                ) {
-                    jogoTerminado = true;
-                }
-
-                // Contar pontos
-                if (!canos[i].passou && canos[i].x + larguraCano < passaro.x) {
-                    pontuacao++;
-                    canos[i].passou = true;
-                }
-
-                // Remover canos que saíram da tela
-                if (canos[i].x + larguraCano < 0) {
-                    canos.splice(i, 1);
-                }
-            }
-
-            contadorQuadros++;
-        }
-
-        // Desenhar elementos na tela
-        function desenhar() {
-            // Fundo (Céu)
-            ctx.fillStyle = "#70c5ce";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Desenhar Canos
-            ctx.fillStyle = "#2ecc71";
-            for (let i = 0; i < canos.length; i++) {
-                // Cano Superior
-                ctx.fillRect(canos[i].x, 0, larguraCano, canos[i].topo);
-                // Cano Inferior
-                ctx.fillRect(canos[i].x, canos[i].baixo, larguraCano, canvas.height - canos[i].baixo);
-            }
-
-            // Desenhar Passarinho
-            ctx.fillStyle = "#f1c40f";
-            ctx.beginPath();
-            ctx.arc(passaro.x, passaro.y, passaro.raio, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.closePath();
-
-            // Olhinho do passarinho
-            ctx.fillStyle = "#000";
-            ctx.beginPath();
-            ctx.arc(passaro.x + 5, passaro.y - 4, 3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.closePath();
-
-            // Placar de Pontos
-            ctx.fillStyle = "#fff";
-            ctx.font = "bold 28px Arial";
-            ctx.fillText("Pontos: " + pontuacao, 20, 40);
-
-            // Tela de Game Over
-            if (jogoTerminado) {
-                ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                ctx.fillStyle = "#fff";
-                ctx.font = "bold 36px Arial";
-                ctx.textAlign = "center";
-                ctx.fillText("FIM DE JOGO", canvas.width / 2, canvas.height / 2 - 20);
-
-                ctx.font = "18px Arial";
-                ctx.fillText("Clique ou aperte Espaço para reiniciar", canvas.width / 2, canvas.height / 2 + 30);
-                ctx.textAlign = "left"; // resetar alinhamento
-            }
-        }
-
-        // Loop principal do jogo
-        function loop() {
-            atualizar();
-            desenhar();
-            if (!jogoTerminado) {
-                requestAnimationFrame(loop);
-            }
-        }
-
-        // Iniciar o jogo pela primeira vez
-        loop();
+        camera.start().catch(err => {
+            alert("Erro ao acessar a câmera. Certifique-se de usar HTTPS no GitHub Pages!");
+        });
     </script>
 </body>
 </html>
