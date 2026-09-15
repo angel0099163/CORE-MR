@@ -1,122 +1,62 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>MR Hand Tracking - VR Box</title>
-    <style>
-        body, html {
-            margin: 0; padding: 0; overflow: hidden;
-            background: #000; width: 100%; height: 100%;
-        }
-        #container {
-            display: flex; width: 100%; height: 100%;
-        }
-        .eye {
-            flex: 1; width: 50%; height: 100%;
-            position: relative; overflow: hidden;
-            border-right: 2px solid #111;
-        }
-        /* O vídeo da câmera e o canvas do esqueleto ficam sobrepostos em cada olho */
-        video, canvas {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover;
-            transform: scaleX(-1); /* Efeito espelho natural */
-        }
-    </style>
-
-    <!-- Importando as bibliotecas do Google MediaPipe via CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111411">
+  <title>Core MR — Além da tela</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
-    <div id="container">
-        <!-- OLHO ESQUERDO -->
-        <div class="eye">
-            <video id="video-input" autoplay playsinline></video>
-            <canvas id="canvas-left"></canvas>
+  <div class="app-shell">
+    <header class="header">
+      <a class="brand" href="./" aria-label="Core MR, início"><span class="brand-icon">✳</span> Core <span class="brand-light">mr</span><span class="beta">BETA</span></a>
+      <div class="header-right"><span class="status-dot"></span> SEU PRÓXIMO NÍVEL DE REALIDADE <span class="header-tag">WEB EXPERIENCE <span>↗</span></span></div>
+    </header>
+    <main>
+      <div class="eyebrow"><span class="tiny-cross">+</span> REALIDADE MISTA. POSSIBILIDADES REAIS.</div>
+      <section class="hero">
+        <div class="hero-copy">
+          <div class="edition">CORE MR <span>/</span> EXPERIENCE 01</div>
+          <h1>Seu mundo.<br>Uma nova<br><span>dimensão.</span><span class="heading-star">✳</span></h1>
+          <p class="intro">Transforme seu celular em uma experiência de realidade mista. Suas mãos são o controle.</p>
+          <div class="actions"><button id="start" class="button primary"><span class="play-icon">▷</span> Iniciar experiência <span class="arrow">↗</span></button><button id="settings-open" class="button secondary"><span>⚙</span> Configurações</button></div>
+          <p class="privacy"><span>▣</span> A câmera só é ativada quando você iniciar.</p>
         </div>
-        <!-- OLHO DIREITO -->
-        <div class="eye">
-            <!-- Espelha o mesmo vídeo e desenha o esqueleto correspondente -->
-            <video id="video-clone" autoplay playsinline style="display:none;"></video>
-            <canvas id="canvas-right"></canvas>
+        <div class="visual" aria-label="Ilustração do rastreamento do esqueleto de uma mão">
+          <div class="visual-top"><span><i class="status-dot"></i> HAND TRACKING</span><span class="outline-tag">21 PONTOS / MÃO</span></div>
+          <div class="scan-area"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><span class="coordinate coord-one">X 0.482<br>Y 0.716<br>Z −0.023</span><span class="coordinate coord-two">LANDMARK_08<br><b>INDEX FINGER</b></span><svg id="hand-art" viewBox="0 0 420 420" role="img" aria-label="Esqueleto ilustrativo de uma mão"></svg><span class="scan-line"></span><div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div></div>
+          <div class="visual-bottom"><span><i class="status-dot"></i> MOVIMENTOS NATURAIS.<br><strong>CONEXÕES INSTANTÂNEAS.</strong></span><span class="visual-symbol">⌘</span></div>
+          <div class="illustration-label">VISUALIZAÇÃO ILUSTRATIVA <span>01 — 21</span></div>
         </div>
-    </div>
+      </section>
+      <section class="features" aria-label="Recursos">
+        <article><span class="feature-icon">◉</span><div><h2>O real encontra o digital</h2><p>Veja seu ambiente com uma nova camada<br class="desktop"> de interação.</p></div><span class="feature-number">01</span></article>
+        <article><span class="feature-icon hand-icon">⌁</span><div><h2>Suas mãos, em tempo real</h2><p>Esqueleto visível com rastreamento de<br class="desktop"> até duas mãos.</p></div><span class="feature-number">02</span></article>
+        <article><span class="feature-icon">▱</span><div><h2>Feito para o seu VR Box</h2><p>Visualização dupla e tela cheia para<br class="desktop"> entrar na experiência.</p></div><span class="feature-number">03</span></article>
+      </section>
+      <div class="getting-started"><span class="info-icon">i</span><p><strong>Pronto para explorar?</strong> Use seu celular, permita o acesso à câmera e encaixe no VR Box.</p><span class="device-tag">CELULAR + VR BOX <span>↗</span></span></div>
+    </main>
+    <footer><span>CORE MR <span class="footer-divider">/</span> MENOS LIMITES. MAIS REALIDADE.</span><span>NO NAVEGADOR. SEM INSTALAR.<span class="footer-dot">✳</span></span></footer>
+  </div>
 
-    <script>
-        const videoElement = document.getElementById('video-input');
-        const canvasLeft = document.getElementById('canvas-left');
-        const ctxLeft = canvasLeft.getContext('2d');
-        
-        const canvasRight = document.getElementById('canvas-right');
-        const ctxRight = canvasRight.getContext('2d');
+  <dialog id="settings" aria-labelledby="settings-title">
+    <form method="dialog" class="dialog-header"><span class="edition">AJUSTE SUA EXPERIÊNCIA</span><button class="icon-button" aria-label="Fechar configurações">✕</button></form>
+    <h2 id="settings-title">Do seu jeito.</h2><p class="dialog-description">Prepare sua janela para outra realidade.</p>
+    <fieldset><legend>Câmera</legend><div class="camera-options"><label><input type="radio" name="camera" value="environment"><span>↗ <strong>Traseira</strong><small>Explore seu ambiente</small></span></label><label><input type="radio" name="camera" value="user"><span>↶ <strong>Frontal</strong><small>Veja suas mãos de frente</small></span></label></div></fieldset>
+    <fieldset><legend>Cor do hand tracking</legend><div id="swatches" class="swatches"></div><label class="custom-color">Cor personalizada <input id="custom-color" type="color" value="#c7f86a" aria-label="Cor personalizada do esqueleto"></label></fieldset>
+    <div class="settings-preview"><svg id="mini-hand" viewBox="0 0 420 420" aria-hidden="true"></svg><div><span class="edition">PRÉVIA DO ESQUELETO</span><p>Seus movimentos.<br>Sua assinatura.</p></div></div>
+    <p class="permission-note">A permissão será solicitada ao iniciar. Para trocar de câmera, encerre a experiência e selecione a outra aqui. O vídeo é processado no seu dispositivo.</p>
+    <button id="settings-save" class="button primary full-width">Salvar configurações <span>✓</span></button>
+  </dialog>
 
-        function onResults(results) {
-            // Ajusta dimensões dos canvas conforme a resolução real da câmera
-            if (canvasLeft.width !== videoElement.videoWidth) {
-                canvasLeft.width = videoElement.videoWidth;
-                canvasLeft.height = videoElement.videoHeight;
-                canvasRight.width = videoElement.videoWidth;
-                canvasRight.height = videoElement.videoHeight;
-            }
-
-            // Limpa os quadros anteriores
-            ctxLeft.save();
-            ctxLeft.clearRect(0, 0, canvasLeft.width, canvasLeft.height);
-            ctxLeft.drawImage(results.image, 0, 0, canvasLeft.width, canvasLeft.height);
-
-            ctxRight.save();
-            ctxRight.clearRect(0, 0, canvasRight.width, canvasRight.height);
-            ctxRight.drawImage(results.image, 0, 0, canvasRight.width, canvasRight.height);
-
-            // Se encontrar mãos, desenha o esqueleto estrutural em ambos os "olhos"
-            if (results.multiHandLandmarks) {
-                for (const landmarks of results.multiHandLandmarks) {
-                    // Desenho no Olho Esquerdo
-                    drawConnectors(ctxLeft, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
-                    drawLandmarks(ctxLeft, landmarks, {color: '#FF0000', lineWidth: 2, radius: 3});
-
-                    // Desenho no Olho Direito (Criando a estereoscopia de realidade mista)
-                    drawConnectors(ctxRight, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
-                    drawLandmarks(ctxRight, landmarks, {color: '#FF0000', lineWidth: 2, radius: 3});
-                }
-            }
-            ctxLeft.restore();
-            ctxRight.restore();
-        }
-
-        const hands = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-        });
-
-        hands.setOptions({
-            maxNumHands: 2,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.6,
-            minTrackingConfidence: 0.6
-        });
-
-        hands.onResults(onResults);
-
-        // Inicializa a câmera traseira do celular
-        const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await hands.send({ image: videoElement });
-            },
-            facingMode: 'environment', // Câmera traseira para Realidade Mista
-            width: 1280,
-            height: 720
-        });
-
-        camera.start().catch(err => {
-            alert("Erro ao acessar a câmera. Certifique-se de usar HTTPS no GitHub Pages!");
-        });
-    </script>
+  <section id="session" hidden aria-label="Experiência de realidade mista">
+    <video id="camera-video" autoplay muted playsinline hidden></video>
+    <div class="eyes"><canvas id="eye-left"></canvas><canvas id="eye-right"></canvas></div>
+    <div class="session-toolbar"><span class="brand">✳ Core <span class="brand-light">mr</span></span><div><button id="fullscreen" class="session-button" aria-label="Ativar tela cheia">⛶ Tela cheia</button><button id="exit" class="session-button">✕ Sair</button></div></div>
+    <div id="session-message" role="status"><span class="loader"></span><h2 id="session-title">Preparando sua realidade…</h2><p id="session-detail">Permita o acesso à câmera para continuar.</p><button id="retry" class="button primary" hidden>Tentar novamente ↗</button></div>
+    <div class="session-bottom"><span id="tracking-status" role="status">CONECTANDO CÂMERA</span><span id="orientation-hint">Gire o celular na horizontal para usar o VR Box.</span></div>
+  </section>
+  <script src="app.js"></script>
 </body>
 </html>
