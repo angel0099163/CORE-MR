@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>VR Box MR - Hand Tracking</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000}
+  #container{display:flex;width:100%;height:100%;width:100vw;height:100vh}
+  .eye{
+    flex:1;
+    width:50%;
+    height:100%;
+    position:relative;
+    overflow:hidden;
+    background:#000;
+  }
+  .eye:last-child{border-left:1.5px solid #1a1a1a}
+  video,canvas{
+    position:absolute;
+    top:0;left:0;
+    width:100%!important;
+    height:100%!important;
+    object-fit:cover;
+  }
+  /* canvas fica por cima do video, transparente, só desenha esqueleto */
+  canvas{background:transparent}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="container">
+  <div class="eye">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvasL"></canvas>
+  </div>
+  <div class="eye">
+    <canvas id="canvasR"></canvas>
+  </div>
+</div>
+
+<script>
+const video = document.getElementById('video');
+const canvasL = document.getElementById('canvasL');
+const canvasR = document.getElementById('canvasR');
+const ctxL = canvasL.getContext('2d');
+const ctxR = canvasR.getContext('2d');
+
+function resizeCanvases(){
+  const w = video.videoWidth || 1280;
+  const h = video.videoHeight || 720;
+  if(canvasL.width!==w){canvasL.width=w; canvasL.height=h; canvasR.width=w; canvasR.height=h;}
+}
+
+function onResults(results){
+  resizeCanvases();
+  const w = canvasL.width, h = canvasL.height;
+
+  // limpa
+  ctxL.clearRect(0,0,w,h);
+  ctxR.clearRect(0,0,w,h);
+
+  // desenha camera como fundo nos dois olhos (stereo)
+  ctxL.drawImage(results.image,0,0,w,h);
+  ctxR.drawImage(results.image,0,0,w,h);
+
+  if(results.multiHandLandmarks){
+    for(const landmarks of results.multiHandLandmarks){
+      // ESQUELETO 100% VERMELHO - bem visivel
+      const connStyle = {color:'#FF0000', lineWidth:5};
+      const dotStyle = {color:'#FF0000', fillColor:'#FF0000', lineWidth:2, radius:4};
+
+      drawConnectors(ctxL, landmarks, HAND_CONNECTIONS, connStyle);
+      drawLandmarks(ctxL, landmarks, dotStyle);
+
+      drawConnectors(ctxR, landmarks, HAND_CONNECTIONS, connStyle);
+      drawLandmarks(ctxR, landmarks, dotStyle);
+    }
+  }
+}
+
+const hands = new Hands({locateFile: (f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+hands.setOptions({
+  maxNumHands:2,
+  modelComplexity:1,
+  minDetectionConfidence:0.6,
+  minTrackingConfidence:0.6
+});
+hands.onResults(onResults);
+
+// --- CAMERA TRASEIRA DIRETO, SEM TELA INICIAL ---
+async function startCamera(){
+  // tenta traseira com exact, fallback para environment simples
+  const constraintsList = [
+    {video:{facingMode:{exact:"environment"}, width:{ideal:1280}, height:{ideal:720}}},
+    {video:{facingMode:"environment", width:{ideal:1280}, height:{ideal:720}}},
+    {video:true}
+  ];
+  let stream=null, lastErr=null;
+  for(const c of constraintsList){
+    try{ stream = await navigator.mediaDevices.getUserMedia(c); break; }catch(e){ lastErr=e; }
+  }
+  if(!stream) throw lastErr;
+
+  video.srcObject = stream;
+  await video.play();
+
+  // loop manual enviando frames para o mediapipe (mais confiavel que Camera utils)
+  async function loop(){
+    if(video.readyState>=2){
+      await hands.send({image:video});
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+// inicia automaticamente - sem botao, sem splash
+startCamera().catch(e=>{
+  console.error(e);
+  // se o browser bloquear autoplay sem gesto, tenta novamente no primeiro toque (sem mostrar tela)
+  const retry = ()=>{ startCamera().catch(()=>{}); window.removeEventListener('touchend',retry); window.removeEventListener('click',retry); };
+  window.addEventListener('touchend',retry,{once:true});
+  window.addEventListener('click',retry,{once:true});
+});
+
+// impede sleep/scroll
+document.body.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+document.addEventListener('dblclick', e=>e.preventDefault());
+</script>
+</body>
+</html>

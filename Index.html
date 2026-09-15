@@ -1,122 +1,136 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>MR Hand Tracking - VR Box</title>
-    <style>
-        body, html {
-            margin: 0; padding: 0; overflow: hidden;
-            background: #000; width: 100%; height: 100%;
-        }
-        #container {
-            display: flex; width: 100%; height: 100%;
-        }
-        .eye {
-            flex: 1; width: 50%; height: 100%;
-            position: relative; overflow: hidden;
-            border-right: 2px solid #111;
-        }
-        /* O vídeo da câmera e o canvas do esqueleto ficam sobrepostos em cada olho */
-        video, canvas {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: cover;
-            transform: scaleX(-1); /* Efeito espelho natural */
-        }
-    </style>
-
-    <!-- Importando as bibliotecas do Google MediaPipe via CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>VR Box MR - Hand Tracking</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000}
+  #container{display:flex;width:100%;height:100%;width:100vw;height:100vh}
+  .eye{
+    flex:1;
+    width:50%;
+    height:100%;
+    position:relative;
+    overflow:hidden;
+    background:#000;
+  }
+  .eye:last-child{border-left:1.5px solid #1a1a1a}
+  video,canvas{
+    position:absolute;
+    top:0;left:0;
+    width:100%!important;
+    height:100%!important;
+    object-fit:cover;
+  }
+  /* canvas fica por cima do video, transparente, só desenha esqueleto */
+  canvas{background:transparent}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 </head>
 <body>
+<div id="container">
+  <div class="eye">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvasL"></canvas>
+  </div>
+  <div class="eye">
+    <canvas id="canvasR"></canvas>
+  </div>
+</div>
 
-    <div id="container">
-        <!-- OLHO ESQUERDO -->
-        <div class="eye">
-            <video id="video-input" autoplay playsinline></video>
-            <canvas id="canvas-left"></canvas>
-        </div>
-        <!-- OLHO DIREITO -->
-        <div class="eye">
-            <!-- Espelha o mesmo vídeo e desenha o esqueleto correspondente -->
-            <video id="video-clone" autoplay playsinline style="display:none;"></video>
-            <canvas id="canvas-right"></canvas>
-        </div>
-    </div>
+<script>
+const video = document.getElementById('video');
+const canvasL = document.getElementById('canvasL');
+const canvasR = document.getElementById('canvasR');
+const ctxL = canvasL.getContext('2d');
+const ctxR = canvasR.getContext('2d');
 
-    <script>
-        const videoElement = document.getElementById('video-input');
-        const canvasLeft = document.getElementById('canvas-left');
-        const ctxLeft = canvasLeft.getContext('2d');
-        
-        const canvasRight = document.getElementById('canvas-right');
-        const ctxRight = canvasRight.getContext('2d');
+function resizeCanvases(){
+  const w = video.videoWidth || 1280;
+  const h = video.videoHeight || 720;
+  if(canvasL.width!==w){canvasL.width=w; canvasL.height=h; canvasR.width=w; canvasR.height=h;}
+}
 
-        function onResults(results) {
-            // Ajusta dimensões dos canvas conforme a resolução real da câmera
-            if (canvasLeft.width !== videoElement.videoWidth) {
-                canvasLeft.width = videoElement.videoWidth;
-                canvasLeft.height = videoElement.videoHeight;
-                canvasRight.width = videoElement.videoWidth;
-                canvasRight.height = videoElement.videoHeight;
-            }
+function onResults(results){
+  resizeCanvases();
+  const w = canvasL.width, h = canvasL.height;
 
-            // Limpa os quadros anteriores
-            ctxLeft.save();
-            ctxLeft.clearRect(0, 0, canvasLeft.width, canvasLeft.height);
-            ctxLeft.drawImage(results.image, 0, 0, canvasLeft.width, canvasLeft.height);
+  // limpa
+  ctxL.clearRect(0,0,w,h);
+  ctxR.clearRect(0,0,w,h);
 
-            ctxRight.save();
-            ctxRight.clearRect(0, 0, canvasRight.width, canvasRight.height);
-            ctxRight.drawImage(results.image, 0, 0, canvasRight.width, canvasRight.height);
+  // desenha camera como fundo nos dois olhos (stereo)
+  ctxL.drawImage(results.image,0,0,w,h);
+  ctxR.drawImage(results.image,0,0,w,h);
 
-            // Se encontrar mãos, desenha o esqueleto estrutural em ambos os "olhos"
-            if (results.multiHandLandmarks) {
-                for (const landmarks of results.multiHandLandmarks) {
-                    // Desenho no Olho Esquerdo
-                    drawConnectors(ctxLeft, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
-                    drawLandmarks(ctxLeft, landmarks, {color: '#FF0000', lineWidth: 2, radius: 3});
+  if(results.multiHandLandmarks){
+    for(const landmarks of results.multiHandLandmarks){
+      // ESQUELETO 100% VERMELHO - bem visivel
+      const connStyle = {color:'#FF0000', lineWidth:5};
+      const dotStyle = {color:'#FF0000', fillColor:'#FF0000', lineWidth:2, radius:4};
 
-                    // Desenho no Olho Direito (Criando a estereoscopia de realidade mista)
-                    drawConnectors(ctxRight, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
-                    drawLandmarks(ctxRight, landmarks, {color: '#FF0000', lineWidth: 2, radius: 3});
-                }
-            }
-            ctxLeft.restore();
-            ctxRight.restore();
-        }
+      drawConnectors(ctxL, landmarks, HAND_CONNECTIONS, connStyle);
+      drawLandmarks(ctxL, landmarks, dotStyle);
 
-        const hands = new Hands({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-        });
+      drawConnectors(ctxR, landmarks, HAND_CONNECTIONS, connStyle);
+      drawLandmarks(ctxR, landmarks, dotStyle);
+    }
+  }
+}
 
-        hands.setOptions({
-            maxNumHands: 2,
-            modelComplexity: 1,
-            minDetectionConfidence: 0.6,
-            minTrackingConfidence: 0.6
-        });
+const hands = new Hands({locateFile: (f)=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
+hands.setOptions({
+  maxNumHands:2,
+  modelComplexity:1,
+  minDetectionConfidence:0.6,
+  minTrackingConfidence:0.6
+});
+hands.onResults(onResults);
 
-        hands.onResults(onResults);
+// --- CAMERA TRASEIRA DIRETO, SEM TELA INICIAL ---
+async function startCamera(){
+  // tenta traseira com exact, fallback para environment simples
+  const constraintsList = [
+    {video:{facingMode:{exact:"environment"}, width:{ideal:1280}, height:{ideal:720}}},
+    {video:{facingMode:"environment", width:{ideal:1280}, height:{ideal:720}}},
+    {video:true}
+  ];
+  let stream=null, lastErr=null;
+  for(const c of constraintsList){
+    try{ stream = await navigator.mediaDevices.getUserMedia(c); break; }catch(e){ lastErr=e; }
+  }
+  if(!stream) throw lastErr;
 
-        // Inicializa a câmera traseira do celular
-        const camera = new Camera(videoElement, {
-            onFrame: async () => {
-                await hands.send({ image: videoElement });
-            },
-            facingMode: 'environment', // Câmera traseira para Realidade Mista
-            width: 1280,
-            height: 720
-        });
+  video.srcObject = stream;
+  await video.play();
 
-        camera.start().catch(err => {
-            alert("Erro ao acessar a câmera. Certifique-se de usar HTTPS no GitHub Pages!");
-        });
-    </script>
+  // loop manual enviando frames para o mediapipe (mais confiavel que Camera utils)
+  async function loop(){
+    if(video.readyState>=2){
+      await hands.send({image:video});
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+// inicia automaticamente - sem botao, sem splash
+startCamera().catch(e=>{
+  console.error(e);
+  // se o browser bloquear autoplay sem gesto, tenta novamente no primeiro toque (sem mostrar tela)
+  const retry = ()=>{ startCamera().catch(()=>{}); window.removeEventListener('touchend',retry); window.removeEventListener('click',retry); };
+  window.addEventListener('touchend',retry,{once:true});
+  window.addEventListener('click',retry,{once:true});
+});
+
+// impede sleep/scroll
+document.body.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+document.addEventListener('dblclick', e=>e.preventDefault());
+</script>
 </body>
 </html>
