@@ -1,0 +1,80 @@
+name: Build Android APK (Core MR)
+
+on:
+  push:
+    branches: [ main, arena/* ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Capacitor CLI
+        run: |
+          npm install -g @capacitor/cli @capacitor/core @capacitor/android
+
+      - name: Initialize Capacitor App
+        run: |
+          mkdir -p www
+          cp -r index.html Index.html manifest.json sw.js icon-*.png www/ 2>/dev/null || true
+          npx cap init "Core MR" "com.coremr.app" --web-dir www
+          npx cap add android
+
+      - name: Add Camera & Fullscreen Permissions to AndroidManifest.xml
+        run: |
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST_PATH" ]; then
+            # Insert permissions right before </manifest>
+            sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />\n    <uses-permission android:name="android.permission.INTERNET" />' "$MANIFEST_PATH"
+            # Set landscape orientation
+            sed -i 's/android:name=".MainActivity"/android:name=".MainActivity" android:screenOrientation="landscape" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"/' "$MANIFEST_PATH"
+          fi
+
+      - name: Copy Assets and Sync Capacitor
+        run: |
+          npx cap copy android
+          npx cap sync android
+
+      - name: Build APK with Gradle
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Archive APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Core-MR-Debug-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Create Release with APK
+        if: startsWith(github.ref, 'refs/heads/main')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: "Core MR v1.0.0 APK"
+          body: "APK do Core MR para VR Box com Realidade Mista e Hand Tracking."
+          files: android/app/build/outputs/apk/debug/app-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

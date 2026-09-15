@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Core MR - VR Box Hand Tracking</title>
+    <!-- Web App Manifest for PWA installation -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2300ffa2'/><text x='50' y='65' font-size='50' text-anchor='middle' font-weight='bold' fill='%23000'>MR</text></svg>">
+
+    <style>
+        :root {
+            --primary: #00ffa2;
+            --primary-glow: rgba(0, 255, 162, 0.4);
+            --bg-dark: #0a0e14;
+            --card-bg: rgba(22, 27, 34, 0.85);
+            --border-color: rgba(255, 255, 255, 0.12);
+            --text-main: #f0f6fc;
+            --text-muted: #8b949e;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* TELA INICIAL (MENU) */
+        #menu-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle at center, #131b26 0%, #06090e 100%);
+            z-index: 100;
+            transition: opacity 0.35s ease, transform 0.35s ease;
+        }
+
+        #menu-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.96);
+        }
+
+        .header-title-container {
+            text-align: center;
+            margin-bottom: 35px;
+        }
+
+        .main-title {
+            font-size: 3.5rem;
+            font-weight: 900;
+            letter-spacing: 4px;
+            margin: 0;
+            background: linear-gradient(135deg, #00ffa2 0%, #00d0ff 50%, #9d4edd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 255, 162, 0.3);
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            margin-top: 8px;
+            font-size: 1rem;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .vr-badge {
+            display: inline-block;
+            margin-top: 12px;
+            background: rgba(0, 255, 162, 0.15);
+            border: 1px solid rgba(0, 255, 162, 0.4);
+            color: var(--primary);
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            width: 85%;
+            max-width: 320px;
+        }
+
+        .btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 18px 24px;
+            font-size: 1.15rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00ffa2 0%, #00b4d8 100%);
+            color: #06090e;
+            border: none;
+            box-shadow: 0 0 25px var(--primary-glow);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        /* MODAL DE CONFIGURAÇÕES */
+        #settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            padding: 20px;
+        }
+
+        #settings-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background: #111722;
+            border: 1px solid rgba(0, 255, 162, 0.3);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 420px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 255, 162, 0.15);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 14px;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.6rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 4px 8px;
+        }
+
+        .setting-section {
+            margin-bottom: 22px;
+        }
+
+        .setting-label {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .setting-hint {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            line-height: 1.3;
+        }
+
+        /* OPÇÕES DE CÂMERA (Traseira / Frontal) */
+        .camera-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .camera-btn {
+            padding: 12px;
+            border-radius: 10px;
+            border: 2px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .camera-btn.active {
+            border-color: var(--primary);
+            background: rgba(0, 255, 162, 0.15);
+            color: var(--primary);
+        }
+
+        /* PALETA DE CORES DO HAND TRACKING */
+        .color-presets {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .color-bubble {
+            aspect-ratio: 1;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: transform 0.15s, border-color 0.15s;
+        }
+
+        .color-bubble.active {
+            border-color: #ffffff;
+            transform: scale(1.15);
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.5);
+        }
+
+        .custom-color-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .custom-color-input {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: none;
+        }
+
+        /* SELETOR DE ESPESSURA E ARTICULAÇÃO */
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-row input[type=range] {
+            flex: 1;
+            accent-color: var(--primary);
+        }
+
+        .permission-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.82rem;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(0, 255, 162, 0.1);
+            color: var(--primary);
+            border: 1px solid rgba(0, 255, 162, 0.25);
+            margin-top: 10px;
+        }
+
+        /* TELA DE REALIDADE MISTA VR BOX (Split Screen) */
+        #vr-stage {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            background: #000;
+            z-index: 10;
+        }
+
+        .eye-view {
+            position: relative;
+            flex: 1;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+
+        /* Linha divisória central de calibração para as lentes do VR Box */
+        .vr-divider {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background: #000;
+            transform: translateX(-50%);
+            z-index: 25;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Ponto focal central para calibração dos olhos no VR Box */
+        .lens-crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 14px;
+            height: 14px;
+            border: 1.5px solid rgba(0, 255, 162, 0.35);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .lens-crosshair::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 3px;
+            height: 3px;
+            background: rgba(0, 255, 162, 0.6);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* O canvas recebe a imagem da câmera + esqueleto de rastreamento desenhado */
+        .eye-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* O elemento de vídeo original fica oculto (processado pelo MediaPipe e pintado no canvas) */
+        #hidden-video {
+            position: fixed;
+            top: -9999px;
+            left: -9999px;
+            width: 640px;
+            height: 480px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* OVERLAYS NO VR */
+        .vr-hud-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 30;
+            display: flex;
+            gap: 10px;
+        }
+
+        .hud-btn {
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .hud-btn:active {
+            background: rgba(0, 255, 162, 0.4);
+        }
+
+        /* Status de detecção no VR */
+        .status-badge {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(0, 255, 162, 0.4);
+            color: var(--primary);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            z-index: 30;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        /* APK / PWA Banner na tela inicial */
+        .install-box {
+            margin-top: 25px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px dashed rgba(0, 255, 162, 0.3);
+            border-radius: 12px;
+            padding: 12px 18px;
+            max-width: 320px;
+            text-align: center;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .install-box a, .install-box span.highlight {
+            color: var(--primary);
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        /* Mensagens de erro/carregamento */
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        #loading-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(0, 255, 162, 0.2);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+
+    <!-- Google MediaPipe Hands & Camera Utils -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+    <!-- VÍDEO OCULTO PARA ALIMENTAR O MEDIAPIPE -->
+    <video id="hidden-video" autoplay playsinline muted></video>
+
+    <!-- TELA INICIAL (MENU PRINCIPAL) -->
+    <div id="menu-screen">
+        <div class="header-title-container">
+            <h1 class="main-title">Core MR</h1>
+            <div class="subtitle">Realidade Mista & Hand Tracking</div>
+            <div class="vr-badge">VR BOX 3D ESTEREOSCÓPICO</div>
+        </div>
+
+        <div class="menu-buttons">
+            <button id="btn-start" class="btn btn-primary">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                INICIAR
+            </button>
+            <button id="btn-settings" class="btn btn-secondary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                CONFIGURAÇÕES
+            </button>
+        </div>
+
+        <div class="install-box">
+            <div>💡 <b>Dica VR Box:</b> Encaixe o celular na horizontal dentro do headset VR Box após clicar em <b>Iniciar</b>.</div>
+        </div>
+    </div>
+
+    <!-- MODAL DE CONFIGURAÇÕES -->
+    <div id="settings-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    Configurações MR
+                </h2>
+                <button id="btn-close-settings" class="close-btn" aria-label="Fechar">&times;</button>
+            </div>
+
+            <!-- ESCOLHA DA CÂMERA -->
+            <div class="setting-section">
+                <span class="setting-label">Câmera Ativa</span>
+                <div class="setting-hint">Escolha se deseja usar a câmera traseira (recomendada para VR Box) ou a câmera frontal:</div>
+                <div class="camera-options">
+                    <button type="button" id="cam-opt-environment" class="camera-btn active" data-facing="environment">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                            <circle cx="12" cy="13" r="4"></circle>
+                        </svg>
+                        Traseira
+                    </button>
+                    <button type="button" id="cam-opt-user" class="camera-btn" data-facing="user">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        Frontal
+                    </button>
+                </div>
+                <div class="permission-badge">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                    A permissão de acesso à câmera será solicitada no início
+                </div>
+            </div>
+
+            <!-- COR DO ESQUELETO DO HAND TRACKING -->
+            <div class="setting-section">
+                <span class="setting-label">Cor do Hand Tracking (Esqueleto)</span>
+                <div class="setting-hint">Escolha a cor das conexões dos dedos no espaço 3D:</div>
+                <div class="color-presets">
+                    <div class="color-bubble active" style="background: #00ffa2;" data-color="#00ffa2" title="Verde Neon"></div>
+                    <div class="color-bubble" style="background: #00d0ff;" data-color="#00d0ff" title="Ciano Cyber"></div>
+                    <div class="color-bubble" style="background: #ff0055;" data-color="#ff0055" title="Rosa Laser"></div>
+                    <div class="color-bubble" style="background: #ffe600;" data-color="#ffe600" title="Amarelo Ouro"></div>
+                    <div class="color-bubble" style="background: #ffffff;" data-color="#ffffff" title="Branco"></div>
+                </div>
+                <div class="custom-color-row">
+                    <input type="color" id="custom-bone-color" class="custom-color-input" value="#00ffa2">
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.88rem;">Personalizar Cor</div>
+                        <div style="font-size: 0.76rem; color: var(--text-muted);" id="color-hex-label">#00FFA2</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COR DAS ARTICULAÇÕES (LANDMARKS) -->
+            <div class="setting-section">
+                <span class="setting-label">Cor das Articulações (Pontos)</span>
+                <div class="custom-color-row">
+                    <input type="color" id="custom-joint-color" class="custom-color-input" value="#ff3366">
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.88rem;">Cor dos Nós dos Dedos</div>
+                        <div style="font-size: 0.76rem; color: var(--text-muted);" id="joint-hex-label">#FF3366</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ESPESSURA DO TRAÇO -->
+            <div class="setting-section">
+                <span class="setting-label">Espessura do Esqueleto (<span id="line-width-val">4</span>px)</span>
+                <div class="slider-row">
+                    <input type="range" id="line-width-slider" min="2" max="10" step="1" value="4">
+                </div>
+            </div>
+
+            <button id="btn-save-settings" class="btn btn-primary" style="width: 100%; margin-top: 10px;">
+                SALVAR E APLICAR
+            </button>
+        </div>
+    </div>
+
+    <!-- TELA DE REALIDADE MISTA VR BOX (ESTEREOSCÓPICO LADO A LADO) -->
+    <div id="vr-stage" style="display: none;">
+        <!-- Linha divisória preta central para isolamento das lentes do VR Box -->
+        <div class="vr-divider"></div>
+
+        <!-- Botões de Controle Rápido dentro do VR -->
+        <div class="vr-hud-overlay">
+            <button id="btn-exit-vr" class="hud-btn">SAIR DO VR</button>
+            <button id="btn-toggle-cam" class="hud-btn">MUDAR CÂMERA</button>
+        </div>
+
+        <div id="detection-status" class="status-badge">
+            🖐 Mostre suas mãos na câmera
+        </div>
+
+        <!-- OLHO ESQUERDO -->
+        <div class="eye-view" id="left-eye-container">
+            <div class="lens-crosshair"></div>
+            <canvas id="canvas-left" class="eye-canvas"></canvas>
+        </div>
+
+        <!-- OLHO DIREITO -->
+        <div class="eye-view" id="right-eye-container">
+            <div class="lens-crosshair"></div>
+            <canvas id="canvas-right" class="eye-canvas"></canvas>
+        </div>
+    </div>
+
+    <!-- OVERLAY DE CARREGAMENTO / INICIALIZAÇÃO -->
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loading-message" style="font-weight: bold; font-size: 1.1rem; text-align: center; max-width: 80%;">
+            Iniciando IA do Hand Tracking...
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURAÇÕES E ESTADO GLOBAL
+        const config = {
+            facingMode: 'environment', // 'environment' (traseira) ou 'user' (frontal)
+            boneColor: '#00ffa2',
+            jointColor: '#ff3366',
+            lineWidth: 4,
+            jointRadius: 3
+        };
+
+        // RECUPERAR PREFERÊNCIAS SALVAS NO LOCALSTORAGE
+        function loadSavedSettings() {
+            try {
+                const saved = localStorage.getItem('core_mr_settings');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    Object.assign(config, parsed);
+                }
+            } catch (e) {
+                console.warn('Erro ao carregar configurações salvas:', e);
+            }
+            updateUIFromConfig();
+        }
+
+        function saveSettings() {
+            try {
+                localStorage.setItem('core_mr_settings', JSON.stringify(config));
+            } catch (e) {
+                console.warn('Erro ao salvar no localStorage:', e);
+            }
+        }
+
+        function updateUIFromConfig() {
+            // Atualiza botões de câmera
+            document.querySelectorAll('.camera-btn').forEach(btn => {
+                if (btn.dataset.facing === config.facingMode) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // Atualiza inputs de cor
+            document.getElementById('custom-bone-color').value = config.boneColor;
+            document.getElementById('color-hex-label').textContent = config.boneColor.toUpperCase();
+            document.getElementById('custom-joint-color').value = config.jointColor;
+            document.getElementById('joint-hex-label').textContent = config.jointColor.toUpperCase();
+
+            // Atualiza bolhas de presets
+            document.querySelectorAll('.color-bubble').forEach(b => {
+                if (b.dataset.color.toLowerCase() === config.boneColor.toLowerCase()) {
+                    b.classList.add('active');
+                } else {
+                    b.classList.remove('active');
+                }
+            });
+
+            // Atualiza slider
+            document.getElementById('line-width-slider').value = config.lineWidth;
+            document.getElementById('line-width-val').textContent = config.lineWidth;
+        }
+
+        // ELEMENTOS DOM
+        const menuScreen = document.getElementById('menu-screen');
+        const settingsModal = document.getElementById('settings-modal');
+        const vrStage = document.getElementById('vr-stage');
+        const hiddenVideo = document.getElementById('hidden-video');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingMessage = document.getElementById('loading-message');
+        const detectionStatus = document.getElementById('detection-status');
+
+        const canvasLeft = document.getElementById('canvas-left');
+        const ctxLeft = canvasLeft.getContext('2d');
+        const canvasRight = document.getElementById('canvas-right');
+        const ctxRight = canvasRight.getContext('2d');
+
+        // BOTÕES
+        const btnStart = document.getElementById('btn-start');
+        const btnSettings = document.getElementById('btn-settings');
+        const btnCloseSettings = document.getElementById('btn-close-settings');
+        const btnSaveSettings = document.getElementById('btn-save-settings');
+        const btnExitVr = document.getElementById('btn-exit-vr');
+        const btnToggleCam = document.getElementById('btn-toggle-cam');
+
+        // INSTÂNCIAS DE MEDIAPIPE E CÂMERA
+        let handsModel = null;
+        let cameraStream = null;
+        let animationFrameId = null;
+        let isRunning = false;
+
+        // TELA CHEIA (FULLSCREEN & ORIENTAÇÃO HORIZONTAL)
+        async function enterFullscreen() {
+            const el = document.documentElement;
+            try {
+                if (el.requestFullscreen) {
+                    await el.requestFullscreen();
+                } else if (el.webkitRequestFullscreen) {
+                    await el.webkitRequestFullscreen();
+                } else if (el.msRequestFullscreen) {
+                    await el.msRequestFullscreen();
+                }
+            } catch (err) {
+                console.log('Fullscreen automático pode exigir gesto do usuário:', err);
+            }
+
+            // Tentar travar em orientação paisagem (landscape) para VR Box
+            try {
+                if (screen.orientation && screen.orientation.lock) {
+                    await screen.orientation.lock('landscape');
+                }
+            } catch (e) {
+                console.log('Bloqueio de orientação em landscape:', e);
+            }
+        }
+
+        function exitFullscreen() {
+            try {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            } catch (e) {
+                console.log('Erro ao sair de tela cheia:', e);
+            }
+
+            try {
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
+            } catch (e) {}
+        }
+
+        // INICIALIZAR MEDIAPIPE HANDS
+        function initHandsModel() {
+            if (handsModel) return;
+
+            handsModel = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
+            handsModel.setOptions({
+                maxNumHands: 2,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.55,
+                minTrackingConfidence: 0.55
+            });
+
+            handsModel.onResults(onHandResults);
+        }
+
+        // DESENHO ESTEREOSCÓPICO (REALIDADE MISTA NOS DOIS OLHOS)
+        let lastHandsDetectedTime = 0;
+
+        function onHandResults(results) {
+            if (!isRunning) return;
+
+            const vW = hiddenVideo.videoWidth || 640;
+            const vH = hiddenVideo.videoHeight || 480;
+
+            if (canvasLeft.width !== vW || canvasLeft.height !== vH) {
+                canvasLeft.width = vW;
+                canvasLeft.height = vH;
+                canvasRight.width = vW;
+                canvasRight.height = vH;
+            }
+
+            const isFront = (config.facingMode === 'user');
+
+            // --- DESENHAR OLHO ESQUERDO ---
+            ctxLeft.save();
+            ctxLeft.clearRect(0, 0, vW, vH);
+            if (isFront) {
+                // Espelhar na câmera frontal para parecer um espelho natural
+                ctxLeft.translate(vW, 0);
+                ctxLeft.scale(-1, 1);
+            }
+            ctxLeft.drawImage(results.image, 0, 0, vW, vH);
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    // Esqueleto (ossos e conexões)
+                    drawConnectors(ctxLeft, landmarks, HAND_CONNECTIONS, {
+                        color: config.boneColor,
+                        lineWidth: Number(config.lineWidth)
+                    });
+                    // Articulações (nós dos dedos)
+                    drawLandmarks(ctxLeft, landmarks, {
+                        color: config.jointColor,
+                        lineWidth: 1,
+                        radius: Number(config.jointRadius)
+                    });
+                }
+            }
+            ctxLeft.restore();
+
+            // --- DESENHAR OLHO DIREITO (REALIDADE MISTA COM SEPARAÇÃO ESTÉREO) ---
+            ctxRight.save();
+            ctxRight.clearRect(0, 0, vW, vH);
+            if (isFront) {
+                ctxRight.translate(vW, 0);
+                ctxRight.scale(-1, 1);
+            }
+            ctxRight.drawImage(results.image, 0, 0, vW, vH);
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    // Esqueleto olho direito
+                    drawConnectors(ctxRight, landmarks, HAND_CONNECTIONS, {
+                        color: config.boneColor,
+                        lineWidth: Number(config.lineWidth)
+                    });
+                    // Articulações olho direito
+                    drawLandmarks(ctxRight, landmarks, {
+                        color: config.jointColor,
+                        lineWidth: 1,
+                        radius: Number(config.jointRadius)
+                    });
+                }
+            }
+            ctxRight.restore();
+
+            // Atualizar status HUD
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                lastHandsDetectedTime = Date.now();
+                const count = results.multiHandLandmarks.length;
+                detectionStatus.textContent = `🖐 ${count} MÃO${count > 1 ? 'S' : ''} DETECTADA${count > 1 ? 'S' : ''} (MR OK)`;
+                detectionStatus.style.borderColor = config.boneColor;
+            } else {
+                if (Date.now() - lastHandsDetectedTime > 1500) {
+                    detectionStatus.textContent = '🖐 Mostre suas mãos na câmera';
+                    detectionStatus.style.borderColor = 'rgba(0, 255, 162, 0.4)';
+                }
+            }
+        }
+
+        // CONTROLE DA CÂMERA (COM PEDIDO EXPLÍCITO DE PERMISSÃO)
+        async function startCamera() {
+            showLoading(true, "Pedindo permissão e iniciando câmera...");
+
+            // Parar stream anterior se existir
+            stopCamera();
+
+            const constraints = {
+                audio: false,
+                video: {
+                    facingMode: { ideal: config.facingMode },
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 }
+                }
+            };
+
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                hiddenVideo.srcObject = cameraStream;
+                await hiddenVideo.play();
+
+                initHandsModel();
+
+                // Loop de envio de frames para o modelo
+                let processing = false;
+                async function processFrame() {
+                    if (!isRunning) return;
+
+                    if (hiddenVideo.readyState >= 2 && !processing) {
+                        processing = true;
+                        try {
+                            await handsModel.send({ image: hiddenVideo });
+                        } catch (err) {
+                            console.error('Erro no send do MediaPipe:', err);
+                        }
+                        processing = false;
+                    }
+                    animationFrameId = requestAnimationFrame(processFrame);
+                }
+
+                isRunning = true;
+                showLoading(false);
+                animationFrameId = requestAnimationFrame(processFrame);
+
+            } catch (err) {
+                showLoading(false);
+                console.error("Falha ao abrir câmera:", err);
+                alert("Erro ao acessar a câmera: " + err.message + "\n\nCertifique-se de que autorizou a permissão da câmera no navegador/aplicativo!");
+                stopVR();
+            }
+        }
+
+        function stopCamera() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            if (hiddenVideo.srcObject) {
+                hiddenVideo.srcObject = null;
+            }
+        }
+
+        function showLoading(show, message = "") {
+            if (show) {
+                loadingMessage.textContent = message;
+                loadingOverlay.classList.add('active');
+            } else {
+                loadingOverlay.classList.remove('active');
+            }
+        }
+
+        // CONTROLE DE MODO VR (INICIAR / SAIR)
+        async function startVR() {
+            menuScreen.classList.add('hidden');
+            vrStage.style.display = 'flex';
+            await enterFullscreen();
+            await startCamera();
+        }
+
+        function stopVR() {
+            isRunning = false;
+            stopCamera();
+            vrStage.style.display = 'none';
+            menuScreen.classList.remove('hidden');
+            exitFullscreen();
+        }
+
+        // EVENT LISTENERS DO MENU
+        btnStart.addEventListener('click', () => {
+            startVR();
+        });
+
+        btnSettings.addEventListener('click', () => {
+            updateUIFromConfig();
+            settingsModal.classList.add('active');
+        });
+
+        btnCloseSettings.addEventListener('click', () => {
+            settingsModal.classList.remove('active');
+        });
+
+        btnSaveSettings.addEventListener('click', () => {
+            saveSettings();
+            settingsModal.classList.remove('active');
+        });
+
+        // Fechar modal ao clicar fora
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.classList.remove('active');
+            }
+        });
+
+        // ESCOLHA DA CÂMERA (TRASEIRA OU FRONTAL)
+        document.querySelectorAll('.camera-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.camera-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                config.facingMode = btn.dataset.facing;
+                saveSettings();
+            });
+        });
+
+        // PALETAS DE COR RÁPIDA
+        document.querySelectorAll('.color-bubble').forEach(bubble => {
+            bubble.addEventListener('click', () => {
+                document.querySelectorAll('.color-bubble').forEach(b => b.classList.remove('active'));
+                bubble.classList.add('active');
+                const col = bubble.dataset.color;
+                config.boneColor = col;
+                document.getElementById('custom-bone-color').value = col;
+                document.getElementById('color-hex-label').textContent = col.toUpperCase();
+                saveSettings();
+            });
+        });
+
+        // INPUT DE COR PERSONALIZADA DO OSSO
+        document.getElementById('custom-bone-color').addEventListener('input', (e) => {
+            const col = e.target.value;
+            config.boneColor = col;
+            document.getElementById('color-hex-label').textContent = col.toUpperCase();
+            document.querySelectorAll('.color-bubble').forEach(b => {
+                b.classList.toggle('active', b.dataset.color.toLowerCase() === col.toLowerCase());
+            });
+            saveSettings();
+        });
+
+        // INPUT DE COR PERSONALIZADA DAS ARTICULAÇÕES
+        document.getElementById('custom-joint-color').addEventListener('input', (e) => {
+            const col = e.target.value;
+            config.jointColor = col;
+            document.getElementById('joint-hex-label').textContent = col.toUpperCase();
+            saveSettings();
+        });
+
+        // SLIDER DE ESPESSURA
+        document.getElementById('line-width-slider').addEventListener('input', (e) => {
+            const val = e.target.value;
+            config.lineWidth = val;
+            document.getElementById('line-width-val').textContent = val;
+            saveSettings();
+        });
+
+        // BOTÕES DO VR HUD
+        btnExitVr.addEventListener('click', () => {
+            stopVR();
+        });
+
+        btnToggleCam.addEventListener('click', async () => {
+            config.facingMode = (config.facingMode === 'environment') ? 'user' : 'environment';
+            saveSettings();
+            updateUIFromConfig();
+            await startCamera();
+        });
+
+        // REGISTRAR SERVICE WORKER SE DISPONÍVEL
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => {
+                    console.log('SW registration error:', err);
+                });
+            });
+        }
+
+        // CARREGA CONFIGURAÇÕES AO INICIAR
+        loadSavedSettings();
+    </script>
+</body>
+</html>
